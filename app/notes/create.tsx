@@ -1,42 +1,84 @@
-import { useState } from "react";
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Modal 
-} from "react-native";
+// ...existing code...
+import { useState, useEffect, useRef } from "react";
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, Modal } from "react-native";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ArrowLeft, Edit3, List, Calendar, Palette } from "lucide-react-native";
 
 export default function CreateNote() {
   const router = useRouter();
-  const [mode, setMode] = useState("note"); // "note" | "list"
+  const [mode, setMode] = useState("note");
   const [colorModalVisible, setColorModalVisible] = useState(false);
   const [selectedColor, setSelectedColor] = useState("#E6E6D9");
-  const [title, setTitle] = useState(""); // <-- título da nota
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
 
-  // Paleta de cores para o bloco
+  const isSaving = useRef(false);
+  const didSaveOnUnmount = useRef(false);
+
   const colors = ["#E6E6D9", "#F4BFBF", "#A3C9A8", "#A0C4FF", "#FFD6A5", "#FFADAD"];
 
-  const handleSelectColor = (color) => {
+  const handleSelectColor = (color: string) => {
     setSelectedColor(color);
     setColorModalVisible(false);
   };
 
-  const handleSave = () => {
-    // Envia a nota e a cor escolhida para a Home
-    router.push({
-      pathname: "/home",
-      params: { color: selectedColor, title }, // agora envia o título também
-    });
+  const saveNoteToStorage = async () => {
+    if (isSaving.current) return;
+    if (!title.trim() && !content.trim()) return; // evita notas vazias
+    isSaving.current = true;
+    try {
+      const newNote = {
+        id: Date.now().toString(),
+        title,
+        content,
+        color: selectedColor,
+      };
+      const storedNotes = await AsyncStorage.getItem("notes");
+      const parsedNotes = storedNotes ? JSON.parse(storedNotes) : [];
+      const updatedNotes = [...parsedNotes, newNote];
+      await AsyncStorage.setItem("notes", JSON.stringify(updatedNotes));
+      console.log("Nota salva:", newNote);
+    } catch (error) {
+      console.log("Erro ao salvar nota:", error);
+    } finally {
+      isSaving.current = false;
+    }
   };
 
+  const handleSave = async () => {
+    if (!title.trim()) {
+      alert("Adiciona um título antes de salvar!");
+      return;
+    }
+    await saveNoteToStorage();
+    router.replace("/home");
+  };
+
+  const handleBack = async () => {
+    await saveNoteToStorage();
+    router.replace("/home");
+  };
+
+  // salva automaticamente quando a tela for desmontada (sair)
+  useEffect(() => {
+    return () => {
+      if (!didSaveOnUnmount.current) {
+        // não aguardar aqui para não bloquear a desmontagem
+        saveNoteToStorage();
+        didSaveOnUnmount.current = true;
+      }
+    };
+    // manter dependências para capturar valores atuais no cleanup
+  }, [title, content, selectedColor]);
+
   return (
-    <View style={styles.container}>
-      {/* Topo com botão voltar e título */}
+    <View style={[styles.container, { backgroundColor: selectedColor }]}>
       <View style={styles.header}>
-        {/* Botão vai direto pra home */}
-        <TouchableOpacity onPress={() => router.push("/home")}>
+        <TouchableOpacity onPress={handleBack}>
           <ArrowLeft size={26} color="#333" />
         </TouchableOpacity>
 
-        {/* Campo de título ao lado do botão */}
         <TextInput
           placeholder="Título da nota..."
           style={styles.titleInput}
@@ -46,28 +88,18 @@ export default function CreateNote() {
         />
       </View>
 
-      {/* Campo principal */}
       <View style={styles.content}>
-        {mode === "note" ? (
-          <TextInput
-            placeholder="Escreva sua nota..."
-            style={styles.textInput}
-            placeholderTextColor="#777"
-            multiline
-            textAlignVertical="top"
-          />
-        ) : (
-          <TextInput
-            placeholder="Adicione itens da lista..."
-            style={styles.textInput}
-            placeholderTextColor="#777"
-            multiline
-            textAlignVertical="top"
-          />
-        )}
+        <TextInput
+          placeholder={mode === "note" ? "Escreva sua nota..." : "Adicione itens da lista..."}
+          style={styles.textInput}
+          placeholderTextColor="#777"
+          multiline
+          textAlignVertical="top"
+          value={content}
+          onChangeText={setContent}
+        />
       </View>
 
-      {/* Menu inferior */}
       <View style={styles.bottomMenu}>
         <TouchableOpacity onPress={() => setMode("note")}>
           <Edit3 size={24} color={mode === "note" ? "#E6E6D9" : "#777"} />
@@ -77,18 +109,15 @@ export default function CreateNote() {
           <List size={24} color={mode === "list" ? "#E6E6D9" : "#777"} />
         </TouchableOpacity>
 
-        {/* Botão da paleta de cores */}
         <TouchableOpacity onPress={() => setColorModalVisible(true)}>
           <Palette size={24} color="#E6E6D9" />
         </TouchableOpacity>
 
-        {/* Botão salvar */}
         <TouchableOpacity onPress={handleSave}>
           <Calendar size={24} color="#E6E6D9" />
         </TouchableOpacity>
       </View>
 
-      {/* Modal de seleção de cor */}
       <Modal visible={colorModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -120,10 +149,7 @@ export default function CreateNote() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#E6E6D9",
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -143,15 +169,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "#ccc",
     paddingVertical: 4,
   },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#333",
-  },
+  content: { flex: 1, padding: 20 },
+  textInput: { flex: 1, fontSize: 16, color: "#333" },
   bottomMenu: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -174,17 +193,8 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: "center",
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "500",
-    marginBottom: 15,
-  },
-  colorGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 10,
-  },
+  modalTitle: { fontSize: 18, fontWeight: "500", marginBottom: 15 },
+  colorGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
   colorOption: {
     width: 40,
     height: 40,
@@ -193,10 +203,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
   },
-  selectedColor: {
-    borderWidth: 3,
-    borderColor: "#111",
-  },
+  selectedColor: { borderWidth: 3, borderColor: "#111" },
   closeButton: {
     marginTop: 20,
     backgroundColor: "#111",
@@ -204,8 +211,5 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
-  closeText: {
-    color: "#fff",
-    fontWeight: "500",
-  },
-});
+  closeText: { color: "#fff", fontWeight: "500" },
+});  
