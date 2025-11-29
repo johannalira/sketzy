@@ -1,98 +1,307 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useRouter, useFocusEffect } from "expo-router";
+import { useState, useCallback } from "react";
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { Ionicons } from "@expo/vector-icons"; 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function Home() {
+  const router = useRouter();
+  const today = new Date();
+  const dayMonth = `${String(today.getDate()).padStart(2, "0")}.${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const year = today.getFullYear();
 
-export default function HomeScreen() {
+  const [notes, setNotes] = useState<any[]>([]);
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Função unificada para carregar Notas e Lembretes
+  const loadData = async () => {
+    try {
+      // 1. Carregar Notas
+      const storedNotes = await AsyncStorage.getItem("notes");
+      if (storedNotes) {
+        const parsedNotes = JSON.parse(storedNotes);
+        if (Array.isArray(parsedNotes)) setNotes(parsedNotes);
+      }
+
+      // 2. Carregar Lembretes
+      const storedReminders = await AsyncStorage.getItem("reminders");
+      if (storedReminders) {
+        const parsedReminders = JSON.parse(storedReminders);
+        // Ordenar lembretes por data (mais próximo primeiro)
+        if (Array.isArray(parsedReminders)) {
+            parsedReminders.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            setReminders(parsedReminders);
+        }
+      }
+
+    } catch (error) {
+      console.log("Erro ao carregar dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const handleAddNote = () => {
+    router.push("/notes/create");
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      const updatedNotes = notes.filter((n) => n.id !== noteId);
+      setNotes(updatedNotes);
+      await AsyncStorage.setItem("notes", JSON.stringify(updatedNotes));
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível excluir a nota.");
+    }
+  };
+
+  const handleDeleteReminder = async (reminderId: string) => {
+    try {
+      const updatedReminders = reminders.filter((r) => r.id !== reminderId);
+      setReminders(updatedReminders);
+      await AsyncStorage.setItem("reminders", JSON.stringify(updatedReminders));
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível excluir o lembrete.");
+    }
+  };
+
+  const formatReminderDate = (isoDate: string) => {
+      const d = new Date(isoDate);
+      return `${d.getDate()}/${d.getMonth()+1} às ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={{ flex: 1, backgroundColor: "#E9EADB" }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }}>
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={[styles.dateText, { fontSize: 32 }]}>{dayMonth}</Text>
+            <Text style={[styles.dateText, { fontSize: 36 }]}>{year}</Text>
+          </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+          <Text style={styles.separator}>|</Text>
+
+          <TouchableOpacity
+            style={styles.profileContainer}
+            onPress={() => router.push('/configura')} 
+            activeOpacity={0.7}
+          >
+            <Text style={styles.username}>Perfil</Text>
+            <View style={styles.profileImageContainer}>
+                 <Image 
+                    source={{ uri: "http://i.pravatar.cc/100" }} 
+                    style={styles.profileImage} 
+                 />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+             <ActivityIndicator size="small" color="#555" style={{ marginTop: 20 }} />
+        ) : (
+          <>
+            {/* SEÇÃO DE LEMBRETES (Só aparece se tiver lembretes) */}
+            {reminders.length > 0 && (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Lembretes</Text>
+                    <View style={styles.remindersContainer}>
+                        {reminders.map((reminder) => (
+                            <TouchableOpacity
+                                key={reminder.id}
+                                style={styles.reminderCard}
+                                onLongPress={() => {
+                                    Alert.alert(
+                                        "Concluir Lembrete?",
+                                        "Deseja remover este lembrete?",
+                                        [
+                                            { text: "Não", style: "cancel" },
+                                            { text: "Sim", onPress: () => handleDeleteReminder(reminder.id) }
+                                        ]
+                                    )
+                                }}
+                            >
+                                <View style={styles.reminderIcon}>
+                                    <Ionicons name="notifications" size={20} color="#FFF" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.reminderMessage} numberOfLines={2}>{reminder.message}</Text>
+                                    <Text style={styles.reminderDate}>{formatReminderDate(reminder.date)}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            )}
+
+            {/* SEÇÃO DE NOTAS */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Minhas Notas</Text>
+                <View style={styles.notesContainer}>
+                {notes.length === 0 ? (
+                    <Text style={{ textAlign: "center", marginTop: 20, color: "#555", width: '100%' }}>
+                    Nenhuma nota ainda.
+                    </Text>
+                ) : (
+                    notes.map((note) => (
+                    <TouchableOpacity
+                        key={note.id}
+                        onPress={() => router.push({ pathname: "/notes/view", params: note })}
+                        onLongPress={() => {
+                        Alert.alert(
+                            "Apagar bloco?",
+                            "Deseja realmente apagar este bloco?",
+                            [
+                            { text: "Cancelar", style: "cancel" },
+                            {
+                                text: "Apagar",
+                                style: "destructive",
+                                onPress: () => handleDeleteNote(note.id),
+                            },
+                            ]
+                        );
+                        }}
+                        style={[
+                        styles.noteCard,
+                        {
+                            backgroundColor: note.color || '#444',
+                            minHeight: note.mode === "list" ? 150 : 120,
+                        }
+                        ]}
+                    >
+                        <Text style={styles.noteTitle}>{note.title || "Sem título"}</Text>
+
+                        {note.mode === "list" && Array.isArray(note.list) ? (
+                        note.list.slice(0, 3).map((item: any, index: number) => (
+                            <Text key={index} style={styles.listItemPreview}>• {item.text}</Text>
+                        ))
+                        ) : (
+                        <Text style={styles.noteContent} numberOfLines={3}>{note.content}</Text>
+                        )}
+                    </TouchableOpacity>
+                    ))
+                )}
+                </View>
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      <TouchableOpacity style={styles.floatingButton} onPress={handleAddNote}>
+        <Ionicons name="add" size={32} color="rgba(206, 208, 181, 1)" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#E9EADB",
+    paddingHorizontal: 16,
+    paddingTop: 60,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  dateText: { color: "#232622", fontWeight: "600" },
+  profileContainer: { flexDirection: "row", alignItems: "center", gap: 8 },
+  username: { color: "#232622", fontWeight: "600", fontSize: 14 },
+  profileImageContainer: {
+    width: 35, 
+    height: 35, 
+    borderRadius: 20, 
+    overflow: 'hidden',
+    borderWidth: 1, 
+    borderColor: "#888",
+    backgroundColor: '#ccc'
+  },
+  profileImage: { width: '100%', height: '100%' },
+  separator: { color: "#232622", fontSize: 18, marginHorizontal: 8, fontWeight: "500" },
+  
+  // Seções
+  section: {
+    marginTop: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+
+  // Lembretes
+  remindersContainer: {
+    gap: 10,
+  },
+  reminderCard: {
+    backgroundColor: "#2E3A2E", // Verde escuro para diferenciar
+    padding: 15,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  reminderIcon: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  reminderMessage: {
+    color: "#FFF",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  reminderDate: {
+    color: "#CCC",
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // Notas
+  notesContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  noteCard: {
+    width: "48%",
+    minHeight: 120,
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 12,
+    justifyContent: "center",
+  },
+  noteTitle: { color: "#fff", fontWeight: "600", fontSize: 16, marginBottom: 6 },
+  noteContent: { color: "#eee", fontSize: 14 },
+  listItemPreview: { color: "#f5f5f5", fontSize: 13, marginBottom: 3 },
+  
+  floatingButton: {
+    position: "absolute",
+    bottom: 30,
+    right: 25,
+    width: 55,
+    height: 55,
+    borderRadius: 15,
+    backgroundColor: "rgba(38, 38, 38, 1)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 6,
   },
 });

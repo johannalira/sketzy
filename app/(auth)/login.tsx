@@ -1,46 +1,71 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from "react-native";
-import { router } from "expo-router"; // <-- importa o router do Expo Router
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator } from "react-native";
+import { router } from "expo-router";
+// Importamos as fontes para evitar erro de carregamento e garantir o estilo visual
+import { useFonts, Poppins_400Regular, Poppins_600SemiBold } from "@expo-google-fonts/poppins";
 
 export default function LoginScreen() {
+  // 1. Carregamento das fontes (Essencial para não travar o app)
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_600SemiBold,
+  });
+
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
 
+  // CORREÇÃO: Em vez de retornar null (tela branca), mostramos um ícone de carregando
+  if (!fontsLoaded) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color="#303030" />
+      </View>
+    );
+  }
+
   const handleLogin = () => {
+    // Validação simples para teste
     if (email === "teste@email.com" && senha === "1234") {
-      router.push("/home"); // <-- navega pra tela home
+      // CORREÇÃO: Usa 'replace' para o usuário não voltar para o login ao clicar em voltar
+      // Redireciona para o grupo de abas (onde está sua Home)
+      router.replace("/(tabs)"); 
     } else {
       Alert.alert("Erro", "Email ou senha incorretos!");
     }
   };
 
   const handleCreateAccount = () => {
-    router.push("/createAccountScreen"); // <-- navega pra criar conta
+    // CORREÇÃO: Aponta para o caminho correto dentro da pasta (auth)
+    router.push("/(auth)/createAccount"); 
   };
 
   const handleGuest = () => {
-    router.push("/home"); // <-- navega pra home sem login
+    // Entrar como convidado redireciona para a Home
+    router.replace("/(tabs)"); 
   };
 
   return (
     <View style={styles.container}>
-      {/* LOGO no topo */}
+      {/* CORREÇÃO DO CAMINHO DA IMAGEM: 
+        Como o arquivo está em app/(auth)/login.tsx, precisamos subir 
+        dois níveis (../../) para chegar na pasta assets na raiz.
+      */}
       <Image
-        source={require("../assets/scrib/logosemnada.png.png")}
+        source={require("../../assets/scrib/logosemnada.png.png")} 
         style={styles.logo}
         resizeMode="contain"
       />
 
-      {/* Campo de email */}
       <TextInput
         style={styles.input}
         placeholder="Email"
         placeholderTextColor="rgba(48, 48, 48, 0.78)"
         value={email}
         onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
       />
 
-      {/* Campo de senha */}
       <TextInput
         style={styles.input}
         placeholder="Senha"
@@ -50,12 +75,10 @@ export default function LoginScreen() {
         onChangeText={setSenha}
       />
 
-      {/* Botão principal de login */}
       <TouchableOpacity style={styles.buttonLogin} onPress={handleLogin}>
         <Text style={styles.buttonText}>Entrar</Text>
       </TouchableOpacity>
 
-      {/* Frase + botão "Criar conta" */}
       <Text style={styles.smallText}>
         Não tem conta?{" "}
        <Text style={styles.linkText} onPress={handleCreateAccount}>
@@ -63,15 +86,12 @@ export default function LoginScreen() {
        </Text>
       </Text>
 
-      {/* Botão discreto “Entrar sem login” */}
       <TouchableOpacity onPress={handleGuest} style={styles.guestButton}>
         <Text style={styles.guestText}>Entrar sem login</Text>
       </TouchableOpacity>
     </View>
   );
 }
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -103,17 +123,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     marginBottom: 20,
-    fontFamily: "Poppins_400Regular",
   },
   buttonText: {
     color: "#fdfdfdff",
-    fontWeight: "bold",
     fontSize: 16,
-    fontFamily: "Poppins_400Regular",
+    fontFamily: "Poppins_600SemiBold", 
   },
-    linkText: {
+  linkText: {
     color: "rgba(122, 111, 155, 1)",
-    fontFamily: "Poppins_400Regular",
+    fontFamily: "Poppins_600SemiBold",
     textDecorationLine: "underline",
   },
   smallText: {
@@ -132,6 +150,4 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
     fontFamily: "Poppins_400Regular",
   },
-
-  
 });

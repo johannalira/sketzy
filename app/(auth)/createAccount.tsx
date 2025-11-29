@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from "react-native";
+// Importamos as fontes aqui também para garantir
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold } from "@expo-google-fonts/poppins";
 import { router } from "expo-router";
 
@@ -24,15 +25,20 @@ export default function CreateAccountScreen() {
       Alert.alert("Erro", "As senhas não coincidem!");
     } else {
       Alert.alert("Sucesso", "Conta criada com sucesso!");
-      router.push("/login"); // volta pra tela de login
+      // CORREÇÃO: Volta para a tela de login usando 'back' ou o caminho correto
+      router.back(); 
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* LOGO no topo */}
+      {/* CORREÇÃO DO ERRO DA IMAGEM:
+          1. Usamos ../../ para voltar duas pastas (auth -> app -> raiz).
+          2. Verifique se o nome do seu arquivo é mesmo .png.png ou apenas .png
+          Se der erro de novo, tente apagar um ".png" do final.
+      */}
       <Image
-        source={require("../assets/scrib/logosemnada.png.png")} // <-- caminho da sua logo
+        source={require("../../assets/scrib/logosemnada.png.png")} 
         style={styles.logo}
         resizeMode="contain"
       />
@@ -40,6 +46,7 @@ export default function CreateAccountScreen() {
       <TextInput
         style={styles.input}
         placeholder="Nome completo"
+        placeholderTextColor="rgba(48, 48, 48, 0.78)"
         value={nome}
         onChangeText={setNome}
       />
@@ -47,6 +54,7 @@ export default function CreateAccountScreen() {
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor="rgba(48, 48, 48, 0.78)"
         value={email}
         onChangeText={setEmail}
       />
@@ -54,6 +62,7 @@ export default function CreateAccountScreen() {
       <TextInput
         style={styles.input}
         placeholder="Senha"
+        placeholderTextColor="rgba(48, 48, 48, 0.78)"
         secureTextEntry
         value={senha}
         onChangeText={setSenha}
@@ -62,6 +71,7 @@ export default function CreateAccountScreen() {
       <TextInput
         style={styles.input}
         placeholder="Confirmar senha"
+        placeholderTextColor="rgba(48, 48, 48, 0.78)"
         secureTextEntry
         value={confirmarSenha}
         onChangeText={setConfirmarSenha}
@@ -73,13 +83,11 @@ export default function CreateAccountScreen() {
 
        <Text style={[styles.smallText, { marginTop: 15 }]}>
          Já tem uma conta?{" "}
-       <Text style={styles.linkText} onPress={() => router.push("/login")}>
+       {/* CORREÇÃO DO LINK: Volta para o login */}
+       <Text style={styles.linkText} onPress={() => router.back()}>
             Faça login
           </Text>
        </Text>
-
-
-
 
     </View>
   );
@@ -96,7 +104,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 180,
     height: 180,
-    marginBottom: 30, // espaço abaixo da logo
+    marginBottom: 30, 
   },
   input: {
     width: "100%",
@@ -128,5 +136,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Poppins_400Regular",
   },
-  
 });
