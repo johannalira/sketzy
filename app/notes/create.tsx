@@ -144,7 +144,7 @@ export default function CreateNote() {
       console.log("Erro ao salvar nota:", error);
     } finally {
       isSaving.current = false;
-    }
+    } 
   };
 
   const handleBack = async () => {
@@ -154,18 +154,11 @@ export default function CreateNote() {
   };
 
   // Salva automaticamente APENAS quando o componente for desmontado (sair da tela)
-  useEffect(() => {
-    return () => {
-      // Só salva se não tivermos salvo manualmente pelo botão Voltar
-      if (!didSaveOnUnmount.current) {
-        saveNoteToStorage();
-      }
-    };
-  }, []); // Dependências vazias = roda só na montagem/desmontagem
+  // Dependências vazias = roda só na montagem/desmontagem
 
   return (
-    <View style={[styles.container, { backgroundColor: selectedColor }]}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: "#FAF8F0" }]}>
+      <View style={styles.header}> 
         <TouchableOpacity onPress={handleBack} style={{ padding: 5 }}>
           <Ionicons name="arrow-back" size={26} color="#333" />
         </TouchableOpacity>

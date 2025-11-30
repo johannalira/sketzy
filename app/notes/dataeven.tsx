@@ -8,47 +8,43 @@ import {
   Platform,
   SafeAreaView,
   Alert,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-// Importação necessária para salvar os dados
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// --- Componente Auxiliar ---
-const CalendarBox = ({ day, selected }: { day: number | string | null, selected: boolean }) => (
-  <View style={[styles.calendarDay, selected && styles.calendarDaySelected]}>
-    <Text style={[styles.calendarText, selected && styles.calendarTextSelected]}>
-      {day}
-    </Text>
-  </View>
-);
+// --- 1. DEFINIÇÃO DAS CORES ---
+const COLOR_OPTIONS = [
+  '#4A614A', // Verde Escuro
+  '#A16E83', // Rosa Velho
+  '#4E7494', // Azul Aço
+  '#D7B10A', // Amarelo Ouro
+  '#808080', // Cinza Neutro
+  '#9E6038', // Marrom Cobre
+];
 
 const LembreteScreen = () => {
   const router = useRouter();
 
   // --- Estados do Componente ---
-  const [date, setDate] = useState(new Date()); // Começa com a data de hoje
+  const [date, setDate] = useState(new Date());
   const [message, setMessage] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[0]);
 
   // --- Funções de Manipulação ---
   const onChangeDate = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
-    
-    if (Platform.OS === 'android') {
-        setShowDatePicker(false);
-    }
+    if (Platform.OS === 'android') setShowDatePicker(false);
     setDate(currentDate);
   };
 
   const onChangeTime = (event: any, selectedTime?: Date) => {
     const currentTime = selectedTime || date;
-    if (Platform.OS === 'android') {
-        setShowTimePicker(false);
-    }
+    if (Platform.OS === 'android') setShowTimePicker(false);
     setDate(currentTime);
   };
 
@@ -62,183 +58,147 @@ const LembreteScreen = () => {
     setShowDatePicker(false);
   };
 
-  // --- FUNÇÃO DE SALVAR ATUALIZADA ---
+  // --- Função de Salvar ---
   const handleSaveReminder = async () => {
-    // 1. Validação básica
     if (!message.trim()) {
-        Alert.alert("Atenção", "Por favor, escreva o que devemos lembrar.");
-        return;
+      Alert.alert("Atenção", "Por favor, escreva o que devemos lembrar.");
+      return;
     }
 
     try {
-        // 2. Criar o objeto do lembrete
-        const newReminder = {
-            id: Date.now().toString(), // ID único
-            date: date.toISOString(),  // Data em formato texto para salvar
-            message: message.trim(),
-            createdAt: Date.now(),
-        };
+      const newReminder = {
+        id: Date.now().toString(),
+        date: date.toISOString(),
+        message: message.trim(),
+        color: selectedColor,
+        createdAt: Date.now(),
+      };
 
-        // 3. Buscar lembretes existentes
-        const storedReminders = await AsyncStorage.getItem("reminders");
-        const currentReminders = storedReminders ? JSON.parse(storedReminders) : [];
+      const storedReminders = await AsyncStorage.getItem("reminders");
+      const currentReminders = storedReminders ? JSON.parse(storedReminders) : [];
+      const updatedReminders = [...currentReminders, newReminder];
 
-        // 4. Adicionar o novo na lista
-        const updatedReminders = [...currentReminders, newReminder];
+      await AsyncStorage.setItem("reminders", JSON.stringify(updatedReminders));
 
-        // 5. Salvar de volta no celular
-        await AsyncStorage.setItem("reminders", JSON.stringify(updatedReminders));
+      const formattedDate = date.toLocaleDateString('pt-BR');
+      const formattedTime = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-        // 6. Confirmação visual
-        const formattedDate = date.toLocaleDateString('pt-BR');
-        const formattedTime = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        
-        Alert.alert(
-          'Lembrete Salvo!',
-          `"${message}" agendado para ${formattedDate} às ${formattedTime}.`,
-          [
-            { text: "OK", onPress: () => router.back() } // Volta para a tela anterior
-          ]
-        );
-
+      Alert.alert(
+        'Lembrete Salvo!',
+        `"${message}" agendado para ${formattedDate} às ${formattedTime}.`,
+        [{ text: "OK", onPress: () => router.back() }]
+      );
     } catch (error) {
-        console.log("Erro ao salvar lembrete:", error);
-        Alert.alert("Erro", "Não foi possível salvar o lembrete.");
+      console.log("Erro ao salvar lembrete:", error);
+      Alert.alert("Erro", "Não foi possível salvar o lembrete.");
     }
   };
 
-  // --- Renderização do Calendário ---
-  const renderCalendar = () => {
-    // Dias fixos para Dezembro 2025 (Exemplo visual)
-    const days = [
-        null, 1, 2, 3, 4, 5, 6,
-        7, 8, 9, 10, 11, 12, 13,
-        14, 15, 16, 17, 18, 19, 20,
-        21, 22, 23, 24, 25, 26, 27,
-        28, 29, 30, 31
-    ];
-
-    const calendarGrid = [];
-    const dayNames = ['DOM', 'SEG', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'];
-    
-    // Cabeçalho
-    const header = dayNames.map((name, index) => (
-      <Text key={`header-${index}`} style={styles.headerDay}>{name}</Text>
-    ));
-    calendarGrid.push(<View key="header" style={styles.calendarRow}>{header}</View>);
-
-    // Corpo
-    let dayIndex = 0; 
-    for (let i = 0; i < 5; i++) { 
-        const row = [];
-        for (let j = 0; j < 7; j++) { 
-            const day = days[dayIndex];
-            const isSelected = day === date.getDate() && date.getMonth() === 11 && date.getFullYear() === 2025;
-
-            row.push(
-                <TouchableOpacity
-                    key={`day-${i}-${j}`}
-                    onPress={() => day && setDate(new Date(2025, 11, day, date.getHours(), date.getMinutes()))}
-                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}
-                    disabled={!day}
-                >
-                    <CalendarBox
-                        day={day || ' '}
-                        selected={!!(day && isSelected)}
-                    />
-                </TouchableOpacity>
-            );
-            dayIndex++;
-            if (dayIndex >= days.length) break;
-        }
-        calendarGrid.push(<View key={`row-${i}`} style={styles.calendarRow}>{row}</View>);
-        if (dayIndex >= days.length) break;
-    }
-
-    return (
-      <View style={styles.calendarContainer}>
-        <View style={styles.calendarHeader}>
-            <Text style={styles.monthYearText}>DEZ 2025</Text>
-            <TouchableOpacity onPress={showDateMode}>
-                <Ionicons name="calendar" size={20} color="#5B5B5B" />
-            </TouchableOpacity>
-        </View>
-        {calendarGrid}
+  // --- Componente Seletor de Cores ---
+  const renderColorSelector = () => (
+    <View style={styles.colorSelectorContainer}>
+      <Text style={styles.colorSelectorLabel}>Cor do Bloco na Lista:</Text>
+      <View style={styles.colorGrid}>
+        {COLOR_OPTIONS.map((color) => (
+          <TouchableOpacity
+            key={color}
+            style={[
+              styles.colorOption,
+              { backgroundColor: color },
+              selectedColor === color && styles.colorOptionSelected,
+            ]}
+            onPress={() => setSelectedColor(color)}
+          >
+            {selectedColor === color && <Ionicons name="checkmark" size={20} color="#FFF" />}
+          </TouchableOpacity>
+        ))}
       </View>
-    );
-  };
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Header com Botão Voltar */}
+        {/* Header */}
         <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="arrow-back" size={24} color="#333" />
-                <Text style={[styles.headerText, { marginLeft: 10 }]}>Agendar</Text>
+          <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Text style={[styles.headerText, { marginLeft: 10 }]}>Agendar</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Data Selecionada */}
+        <View style={styles.selectedDateDisplay}>
+          <Text style={styles.selectedDateLabel}>Agendado para:</Text>
+          <View style={styles.selectedDateInfo}>
+            <Ionicons name="calendar-outline" size={24} color="#333" />
+            <Text style={styles.selectedDateText}>
+              {date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </Text>
+            <TouchableOpacity onPress={showDateMode} style={styles.editDateButton}>
+              <Ionicons name="create-outline" size={20} color="#5B5B5B" />
             </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Calendário Visual */}
-        <View style={styles.calendarWrapper}>
-            {renderCalendar()}
+        {/* Seletor de Cores */}
+        {renderColorSelector()}
+
+        {/* Box de Lembrete */}
+        <View style={styles.reminderBox}>
+          <TouchableOpacity style={styles.datePart} onPress={showDateMode}>
+            <Text style={styles.dateText}>{date.getDate().toString().padStart(2, '0')}</Text>
+            <Text style={styles.labelSmall}>Dia</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.timePart} onPress={showTimeMode}>
+            <Text style={styles.dateText}>
+              {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            <Text style={styles.labelSmall}>Hora</Text>
+          </TouchableOpacity>
+
+          <View style={styles.messagePart}>
+            <TextInput
+              style={styles.messageInput}
+              onChangeText={setMessage}
+              value={message}
+              placeholder="O que vamos lembrar?"
+              placeholderTextColor="rgba(255, 255, 255, 0.6)"
+            />
+          </View>
         </View>
 
-        {/* Componentes Invisíveis ou Modais do DateTimePicker */}
+        {/* DateTimePicker */}
         {showDatePicker && (
-            <DateTimePicker
+          <DateTimePicker
             value={date}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={onChangeDate}
-            // Removi restrições de data mínima/máxima para facilitar testes
-            />
+          />
         )}
-
         {showTimePicker && (
-            <DateTimePicker
+          <DateTimePicker
             value={date}
             mode="time"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={onChangeTime}
-            />
+          />
         )}
 
-        {/* Box de Lembrete */}
-        <View style={styles.reminderBox}>
-            <TouchableOpacity style={styles.datePart} onPress={showDateMode}>
-                <Text style={styles.dateText}>
-                    {date.getDate().toString().padStart(2, '0')}
-                </Text>
-                <Text style={styles.labelSmall}>Dia</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.timePart} onPress={showTimeMode}>
-                <Text style={styles.dateText}>
-                    {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-                <Text style={styles.labelSmall}>Hora</Text>
-            </TouchableOpacity>
-
-            <View style={styles.messagePart}>
-                <TextInput
-                    style={styles.messageInput}
-                    onChangeText={setMessage}
-                    value={message}
-                    placeholder="O que vamos lembrar?"
-                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                />
-            </View>
-        </View>
-
+        {/* Botão Salvar */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSaveReminder}>
-            <Text style={styles.saveButtonText}>Confirmar Agendamento</Text>
+          <Text style={styles.saveButtonText}>Confirmar Agendamento</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+// ------------------------------------
+// --- ESTILOS ---
+// ------------------------------------
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -256,64 +216,71 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: 'bold',
   },
-  // Calendário
-  calendarWrapper: {
+  selectedDateDisplay: {
     marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 20,
+    padding: 15,
     backgroundColor: '#EBEAE5',
     borderRadius: 16,
-    padding: 15,
+    borderLeftWidth: 5,
+    borderLeftColor: '#4A614A',
+  },
+  selectedDateLabel: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  selectedDateInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectedDateText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+    marginLeft: 10,
+  },
+  editDateButton: {
+    padding: 5,
+  },
+  colorSelectorContainer: {
+    marginHorizontal: 20,
     marginBottom: 20,
   },
-  calendarContainer: {
-    width: '100%',
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    paddingHorizontal: 5,
-  },
-  monthYearText: {
+  colorSelectorLabel: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#5B5B5B',
+    marginBottom: 10,
   },
-  calendarRow: {
+  colorGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 5,
+    gap: 10,
+    paddingHorizontal: 5,
   },
-  headerDay: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#999',
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  calendarDay: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  colorOption: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  calendarDaySelected: {
-    backgroundColor: '#333',
+  colorOptionSelected: {
+    borderWidth: 4,
+    borderColor: '#FFF',
   },
-  calendarText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  calendarTextSelected: {
-    color: '#FFF',
-    fontWeight: 'bold',
-  },
-  // Box Lembrete
   reminderBox: {
     flexDirection: 'row',
-    backgroundColor: '#2E3A2E', 
+    backgroundColor: '#2E3A2E',
     borderRadius: 16,
     height: 90,
     marginHorizontal: 20,
@@ -360,7 +327,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     padding: 0,
   },
-  // Botão
   saveButton: {
     backgroundColor: '#4A614A',
     marginHorizontal: 20,

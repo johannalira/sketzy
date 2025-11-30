@@ -17,7 +17,8 @@ export default function FoldersScreen() {
         const parsedNotes = JSON.parse(storedNotes);
         if (Array.isArray(parsedNotes)) {
           // Opcional: Inverter a ordem para as mais novas aparecerem primeiro
-          setNotes(parsedNotes.reverse()); 
+          const onlyNotes = parsedNotes.filter(n => n.mode === "note");
+          setNotes(onlyNotes.reverse());
         }
       }
     } catch (error) {
